@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/energy
+    username: energy
+    password: energy
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true         
+  properties:
+    spring:
+       management:
+         endpoints:
+           web:
+             exposure:
+               include: "health"
+
+               
