@@ -1,0 +1,120 @@
+
+# 🚗 Vehicle Maintenance Performance Dashboard  
+**Full-Stack React + Spring Boot + SQL Server/Postgres + Docker + Copilot (Ollama)**
+
+---
+
+# 📌 Project Overview
+This project is a **production-style maintenance insights dashboard** built to demonstrate full-stack engineering skills including:
+
+- React + TypeScript frontend
+- Spring Boot REST API backend
+- JPA/Hibernate database joins
+- Dockerized multi-container deployment
+- Lookup tables (Twin + Creator)
+- CRUD forms with calendar inputs
+- AI Copilot integration via Ollama
+
+The application allows users to:
+
+✅ View “Top Successful Actions / Insights”  
+✅ Create / Edit / Delete records  
+✅ Select Twin & Creator via dropdown lookups  
+✅ Choose dates using calendar picker  
+✅ Visualize performance using charts  
+
+---
+
+# 🏗️ Architecture
+
+```
+React (Vite)
+     │ REST API
+     ▼
+Spring Boot Backend
+     │ JPA / Hibernate
+     ▼
+Database (Postgres / SQL)
+```
+
+Docker containers run the entire stack.
+
+---
+
+# ▶️ To Run
+
+1) Start containers
+
+```
+docker compose up --build
+```
+
+2) Pull AI model (first time only)
+
+```
+docker exec -it vehiclemaintenanceperformance-ollama-1 ollama pull mistral
+```
+
+3) Open application
+
+```
+http://localhost:5173/
+```
+
+---
+
+# 📦 Container Names
+
+Verify using:
+
+```
+docker ps
+```
+
+Expected containers:
+
+```
+vehiclemaintenanceperformance-frontend-1
+vehiclemaintenanceperformance-backend-1
+vehiclemaintenanceperformance-db-1
+vehiclemaintenanceperformance-ollama-1
+```
+
+---
+
+# 🔧 Useful Docker Commands
+
+Start in background:
+```
+docker compose up -d --build
+```
+
+Stop containers:
+```
+docker compose down
+```
+
+Rebuild without cache:
+```
+docker compose build --no-cache
+```
+
+Backend logs:
+```
+docker compose logs -f backend
+```
+
+Frontend logs:
+```
+docker compose logs -f frontend
+```
+
+Enter backend shell:
+```
+docker exec -it vehiclemaintenanceperformance-backend-1 sh
+```
+
+---
+
+# 📄 License
+Portfolio / Educational Use.

@@ -15,9 +15,12 @@ import ProcessDonut from "../components/ProcessDonut";
 import StackedMonthlyBars from "../components/charts/StackedMonthlyBars";
 import HorizontalBar from "../components/charts/HorizontalBar";
 import EnergyByMonth from "../components/EnergyByMonth";
-import { fetchTopInsights, InsightRow } from "../api/insights";
-import { colorMapByCreater, colorMapArray, byAssignee, byCreator, monthly, energyByTypeForMonth,Limits } from "../data/mock";
+import { fetchTopInsights, createInsight, updateInsight, deleteInsight, InsightRow } from "../api/insights";
+import InsightFormModal from "../components/InsightFormModal";
+import { colorMapByCreater, colorMapArray, byAssignee, byCreator, monthly, energyByTypeForMonth, Limits } from "../data/mock";
 import CopilotDrawer from "../components/CopilotDrawer";
+import { fetchTwins, fetchCreators } from "../api/insights";
+import { fetchAllInsights } from "../api/insights";
 
 
 
@@ -26,9 +29,15 @@ export default function DashboardPage() {
 
   const [rows, setRows] = useState<InsightRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);   
+  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<InsightRow | null>(null);
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [twinOptions, setTwinOptions] = useState([]);
+  const [creatorOptions, setCreatorOptions] = useState([]);
+  const [showAll, setShowAll] = useState(false);
+
   // State variables:
   // rows → holds the fetched insights data to be displayed in the table
   // loading → indicates whether the data is currently being fetched    
@@ -48,22 +57,67 @@ export default function DashboardPage() {
   // When the promise resolves, it sets the fetched data into the 'rows' state variable using setRows.
   // Finally, it sets loading to false to indicate that the data fetching is complete.
   */
- const [selectedlimit, setSelectedLimit] = useState(Limits[0].value);
- const months = Object.keys(energyByTypeForMonth);    
- const [selectedMonth, setSelectedMonth] = useState(months[0]); 
- 
- 
- useEffect(() => {
-    fetchTopInsights(selectedlimit)
-      .then((data) => {
-        setRows(data);
-        setSelected(data[0] ?? null);//
-      })
-      .catch((e) => setError(e.message ?? "Failed to load"))
-      .finally(() => setLoading(false));
-  }, [selectedlimit]);
+  const [selectedlimit, setSelectedLimit] = useState(Limits[0].value);
+  const months = Object.keys(energyByTypeForMonth);
+  const [selectedMonth, setSelectedMonth] = useState(months[0]);
 
- 
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const data = showAll
+          ? await fetchAllInsights()
+          : await fetchTopInsights(selectedlimit);
+
+        setRows(data);
+        setSelected(data[0] ?? null);
+      } catch (e: any) {
+        setError(e.message ?? "Failed to load");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [selectedlimit, showAll]);
+
+
+  useEffect(() => {
+    async function loadLookups() {
+      try {
+        const [tw, cr] = await Promise.all([fetchTwins(), fetchCreators()]);
+        setTwinOptions(tw);
+        setCreatorOptions(cr);
+      } catch (e: any) {
+        setError(e?.message ?? "Failed to load lookups");
+      }
+    }
+    loadLookups();
+  }, []);
+
+  async function reloadTopAndKeepSelection(preferId?: number) {
+  setLoading(true);
+  setError(null);
+
+  try {
+    const data = showAll
+      ? await fetchAllInsights()
+      : await fetchTopInsights(selectedlimit);
+
+    setRows(data);
+
+    const pick =
+      preferId != null ? data.find((x) => x.id === preferId) : null;
+
+    setSelected(pick ?? data[0] ?? null);
+  } catch (e: any) {
+    setError(e?.message ?? "Failed to load");
+  } finally {
+    setLoading(false);
+  }
+}
+
   const monthSuccess = useMemo<DonutSlice[]>(
     () => monthly.map(m => ({ label: m.month, value: m.success })),
     [monthly]
@@ -183,22 +237,78 @@ export default function DashboardPage() {
           </Card>
 
 
-          <Card title="Top Completed Repairs Insights (USD)" className="span-12"
-          right={
-              <select
-                value={selectedlimit}
-                onChange={(e) => setSelectedLimit(Number(e.target.value))}
-                className="limitSelect"
-              >
-                {Limits.map((m) => (
-                  <option key={m} value={m.value} style={{ color: "#cc1212" }}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
+          <Card
+            title={showAll ? "All Insights (CRUD)" : "Top Completed Repairs Insights (USD)"}
+            className="span-12"
+            right={
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+               {showAll && (
+                <>  
+                <button
+                  className="badge"
+                  type="button"
+                  onClick={() => {
+                    setFormMode("create");
+                    setFormOpen(true);
+                  }}
+                  title="Add new insight"
+                >
+                  + Add
+                </button>
+
+                <button
+                  className="badge"
+                  type="button"
+                  disabled={!selected}
+                  onClick={() => {
+                    if (!selected) return;
+                    setFormMode("edit");
+                    setFormOpen(true);
+                  }}
+                  title="Edit selected row"
+                  style={{ opacity: selected ? 1 : 0.55 }}
+                >
+                  Edit
+                </button>
+
+                <button
+                  className="badge"
+                  type="button"
+                  disabled={!selected}
+                  onClick={async () => {
+                    if (!selected) return;
+                    if (!confirm(`Delete insight #${selected.id}?`)) return;
+                    await deleteInsight(selected.id);
+                    await reloadTopAndKeepSelection();
+                  }}
+                  title="Delete selected row"
+                  style={{ opacity: selected ? 1 : 0.55 }}
+                >
+                  Delete
+                </button>
+                </>
+                )}
+                <button
+                  className="badge badgeGreen"
+                  onClick={() => setShowAll((p) => !p)}
+                >
+                  {showAll ? "Show Top Dashboard" : "Manage All Insights"}
+                </button>
+                {!showAll && (
+                  <select
+                    value={selectedlimit}
+                    onChange={(e) => setSelectedLimit(Number(e.target.value))}
+                    className="limitSelect"
+                  >
+                    {Limits.map((m) => (
+                      <option key={m} value={m.value} style={{ color: "#cc1212" }}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             }
-          
-          
           >
             <div style={{ overflow: "auto" }}>
               <table className="table">
@@ -237,9 +347,9 @@ export default function DashboardPage() {
                       }}
                     >
                       <td>{r.insightName}</td>
-                      <td className="muted">{r.twin.name}</td>
+                      <td className="muted">{r.twin?.name ?? "—"}</td>
                       <td>{Number(r.projectedSavingsUsd).toLocaleString()}</td>
-                      <td className="muted">{r.creator.name}</td>
+                      <td className="muted">{r.creator?.name ?? "—"}</td>
                       <td className="muted">{r.assignee || "—"}</td>
                       <td className="muted">{r.dateClosed || "—"}</td>
                       <td className="muted">{r.lastActive || "—"}</td>
@@ -255,15 +365,15 @@ export default function DashboardPage() {
                 <tbody>
                   <tr>
                     <td className="muted">Twin ID</td>
-                    <td>{selected?.twin.id ?? "—"}</td>
+                    <td>{selected?.twin?.id ?? "—"}</td>
                   </tr>
                   <tr>
                     <td className="muted">Twin Name</td>
-                    <td>{selected?.twin.name ?? "—"}</td>
+                    <td>{selected?.twin?.name ?? "—"}</td>
                   </tr>
                   <tr>
                     <td className="muted">Twin Address</td>
-                    <td>{selected?.twin.address ?? "—"}</td>
+                    <td>{selected?.twin?.address ?? "—"}</td>
                   </tr>
                 </tbody>
               </table>
@@ -275,15 +385,15 @@ export default function DashboardPage() {
                 <tbody>
                   <tr>
                     <td className="muted">Creator ID</td>
-                    <td>{selected?.creator.id ?? "—"}</td>
+                    <td>{selected?.creator?.id ?? "—"}</td>
                   </tr>
                   <tr>
                     <td className="muted">Creator Name</td>
-                    <td>{selected?.creator.name ?? "—"}</td>
+                    <td>{selected?.creator?.name ?? "—"}</td>
                   </tr>
                   <tr>
                     <td className="muted">Creator Position</td>
-                    <td>{selected?.creator.position ?? "—"}</td>
+                    <td>{selected?.creator?.position ?? "—"}</td>
                   </tr>
                 </tbody>
               </table>
@@ -292,6 +402,33 @@ export default function DashboardPage() {
         </div>
       </main>
       <CopilotDrawer open={copilotOpen} onClose={() => setCopilotOpen(false)} />
+
+      <InsightFormModal
+        open={formOpen}
+        mode={formMode}
+        initial={formMode === "edit" ? selected : null}
+        twinOptions={twinOptions}
+        creatorOptions={creatorOptions}
+        onClose={() => setFormOpen(false)}
+        onSubmit={async (payload) => {
+          if (formMode === "create") {
+            const created = await createInsight(payload);
+            await reloadTopAndKeepSelection(created.id);
+          } else {
+            if (!selected) return;
+            const updated = await updateInsight(selected.id, payload);
+            await reloadTopAndKeepSelection(updated.id);
+          }
+        }}
+        onDelete={
+          formMode === "edit" && selected
+            ? async () => {
+              await deleteInsight(selected.id);
+              await reloadTopAndKeepSelection();
+            }
+            : undefined
+        }
+      />
     </div>
   );
 }

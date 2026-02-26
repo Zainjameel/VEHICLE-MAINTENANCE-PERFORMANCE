@@ -20,9 +20,9 @@ public List<InsightResponse> top(@RequestParam(name="limit", defaultValue="5") i
 }
   
   @GetMapping
-  public List<Insight> all() {
-    return service.getAll();
-  }
+public List<InsightResponse> all() {
+  return service.getAllResponses();
+}
 
   @PostMapping
   public Insight create(@RequestBody Insight i) {

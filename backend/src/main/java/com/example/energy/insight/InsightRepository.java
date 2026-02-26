@@ -11,4 +11,16 @@ public interface InsightRepository extends JpaRepository<Insight, Long> {
 
   @Query("select i from Insight i join fetch i.twin join fetch i.creator order by i.projectedSavingsUsd desc")
   List<Insight> findTopInsights(Pageable pageable);
+
+
+@Query("""
+  select i from Insight i
+  join fetch i.twin
+  join fetch i.creator
+  order by i.id desc
+""")
+List<Insight> findAllWithJoins();
+
+
+
 }

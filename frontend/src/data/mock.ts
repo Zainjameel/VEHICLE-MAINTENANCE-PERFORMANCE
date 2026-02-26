@@ -151,3 +151,4 @@ export const byAssignee: BarRow[] = [
   { name: "Rodrygo Forward", value: 14000 },
 ];
 
+export const assigneeOptions = byAssignee.map(a => a.name);

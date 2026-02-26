@@ -2,6 +2,7 @@ package com.example.energy.insight;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import com.example.energy.insight.InsightResponse;
 import java.util.List;
 
 @Service
@@ -24,6 +25,13 @@ public class InsightService {
   public List<Insight> getAll() {
     return repo.findAll();
   }
+
+  public List<InsightResponse> getAllResponses() {
+  return repo.findAllWithJoins()
+      .stream()
+      .map(InsightResponse::from)
+      .toList();
+}
 
   public Insight create(Insight i) {
     i.setId(null);
